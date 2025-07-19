@@ -9,8 +9,6 @@ import {
 import TelegramBot from 'node-telegram-bot-api'
 import 'dotenv/config'
 
-// import { info } from './temp_files1/bunny_info.js'
-
 const botToken = process.env.BOT_TOKEN
 const bot = new TelegramBot(botToken, { polling: true })
 bot.on('polling_error', (error) => console.log('polling_error,', error.message))
@@ -31,13 +29,17 @@ bot.onText(youtubeRegex, async (msg, match) => {
   const videoID = ytdl.getVideoID(url)
   const videoFolder = 'downloaded/' + videoID
 
+  const hintMessage = await bot.sendMessage(chatId, 'Getting Info ...')
+
+  let info
+
   try {
     try {
-      await bot.sendMessage(chatId, 'start info')
-      const info = await ytdl.getInfo(videoID)
-      await bot.sendMessage(chatId, 'end info')
+      info = await ytdl.getInfo(videoID)
+      // const infoJson = await fs.readFileSync(`${videoFolder}/info.json`, 'utf8')
+      // info = JSON.parse(infoJson)
     } catch (error) {
-      bot.sendMessage('Error during getting info', error.message)
+      bot.sendMessage(chatId, 'Error during getting info')
       throw error
     }
 
@@ -65,7 +67,10 @@ bot.onText(youtubeRegex, async (msg, match) => {
     await bot.sendMessage(chatId, 'Choose quality', options)
   } catch (error) {
     console.error(error.message)
+    bot.sendMessage(chatId, error.message)
   }
+
+  bot.deleteMessage(chatId, hintMessage.message_id)
 })
 
 bot.on('callback_query', async (callbackQuery) => {
@@ -83,46 +88,55 @@ bot.on('callback_query', async (callbackQuery) => {
   const infoJson = await fs.readFileSync(videoFolder + '/info.json', 'utf8')
   const info = JSON.parse(infoJson)
 
+  const hintMessage = await bot.sendMessage(chatId, 'Downloading Audio ...')
+
   try {
     try {
-      await bot.sendMessage(chatId, 'start audio')
       await downloadStream(info, { quality: 'highestaudio' }, audioPath)
-      await bot.sendMessage(chatId, 'end audio')
     } catch (error) {
-      bot.sendMessage('Error during aduio download', error.message)
+      bot.sendMessage(chatId, 'Error during aduio download')
       throw error
     }
 
     try {
-      await bot.sendMessage(chatId, 'start video')
+      await bot.editMessageText('Downloading Video ...', {
+        chat_id: chatId,
+        message_id: hintMessage.message_id,
+      })
       await downloadStream(info, { quality: videoItag }, videoPath)
-      await bot.sendMessage(chatId, 'end video')
     } catch (error) {
-      bot.sendMessage('Error during video download', error.message)
+      bot.sendMessage(chatId, 'Error during video download')
       throw error
     }
 
     try {
-      await bot.sendMessage(chatId, 'start merge')
+      await bot.editMessageText('Merging ...', {
+        chat_id: chatId,
+        message_id: hintMessage.message_id,
+      })
       await mergeVideoAudio(audioPath, videoPath, outputPath)
-      await bot.sendMessage(chatId, 'end merge')
     } catch (error) {
-      bot.sendMessage('Error during merge', error.message)
+      bot.sendMessage(chatId, 'Error during merge')
       throw error
     }
 
     try {
-      await bot.sendMessage(chatId, 'start send')
+      await bot.editMessageText('Uploading ...', {
+        chat_id: chatId,
+        message_id: hintMessage.message_id,
+      })
       await bot.sendVideo(chatId, outputPath, {
         caption: info.videoDetails.title,
         contentType: 'video/mp4',
       })
-      await bot.sendMessage(chatId, 'end send')
     } catch (error) {
-      bot.sendMessage('Error during upload to telegram', error.message)
+      bot.sendMessage(chatId, 'Error during upload to telegram')
       throw error
     }
   } catch (error) {
     console.error(error.message)
+    bot.sendMessage(chatId, error.message)
   }
+
+  bot.deleteMessage(chatId, hintMessage.message_id)
 })
