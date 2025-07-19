@@ -1,6 +1,3 @@
-import TelegramBot from 'node-telegram-bot-api'
-// import { info } from './temp_files1/bunny_info.js'
-import 'dotenv/config'
 import ytdl from '@distube/ytdl-core'
 import fs from 'fs'
 import {
@@ -9,6 +6,10 @@ import {
   mergeVideoAudio,
   toValidFilename,
 } from './helpers.js'
+import TelegramBot from 'node-telegram-bot-api'
+import 'dotenv/config'
+
+// import { info } from './temp_files1/bunny_info.js'
 
 const botToken = process.env.BOT_TOKEN
 const bot = new TelegramBot(botToken, { polling: true })
@@ -28,55 +29,100 @@ bot.onText(youtubeRegex, async (msg, match) => {
   const chatId = msg.chat.id
   const url = match[0]
   const videoID = ytdl.getVideoID(url)
+  const videoFolder = 'downloaded/' + videoID
 
-  await bot.sendMessage(chatId, 'start info')
-  const info = await ytdl.getInfo(videoID)
-  await bot.sendMessage(chatId, 'end info')
-  const qualities = getVideoQualities(info)
+  try {
+    try {
+      await bot.sendMessage(chatId, 'start info')
+      const info = await ytdl.getInfo(videoID)
+      await bot.sendMessage(chatId, 'end info')
+    } catch (error) {
+      bot.sendMessage('Error during getting info', error.message)
+      throw error
+    }
 
-  const options = {
-    reply_markup: {
-      inline_keyboard: Object.entries(qualities)
-        .reverse()
-        .map(([quality, format]) => [
-          { text: quality, callback_data: `${videoID}|${format.itag}` },
-        ]),
-    },
+    if (fs.existsSync(videoFolder))
+      fs.rmSync(videoFolder, { recursive: true, force: true })
+    fs.mkdirSync(videoFolder, { recursive: true })
+
+    fs.writeFileSync(
+      `${videoFolder}/info.json`,
+      JSON.stringify(info, null, 2),
+      'utf-8'
+    )
+
+    const qualities = getVideoQualities(info)
+
+    const options = {
+      reply_markup: {
+        inline_keyboard: Object.entries(qualities)
+          .reverse()
+          .map(([quality, format]) => [
+            { text: quality, callback_data: `${videoFolder}|${format.itag}` },
+          ]),
+      },
+    }
+    await bot.sendMessage(chatId, 'Choose quality', options)
+  } catch (error) {
+    console.error(error.message)
   }
-  await bot.sendMessage(chatId, 'Choose quality', options)
 })
 
 bot.on('callback_query', async (callbackQuery) => {
   const chatId = callbackQuery.message.chat.id
+
+  bot.deleteMessage(chatId, callbackQuery.message.message_id)
+
   const data = callbackQuery.data
-  const messageId = callbackQuery.message.message_id
-  bot.deleteMessage(chatId, messageId)
+  const [videoFolder, videoItag] = data.split('|')
 
-  const [videoID, videoItag] = data.split('|')
-  await bot.sendMessage(chatId, 'start info')
-  const info = await ytdl.getInfo(videoID)
-  await bot.sendMessage(chatId, 'end info')
-  const title = toValidFilename(info.videoDetails.title)
+  const audioPath = `${videoFolder}/audio.mp4`
+  const videoPath = `${videoFolder}/video.mp4`
+  const outputPath = `${videoFolder}/final.mp4`
 
-  if (!fs.existsSync('temp_files')) fs.mkdirSync('temp_files')
+  const infoJson = await fs.readFileSync(videoFolder + '/info.json', 'utf8')
+  const info = JSON.parse(infoJson)
 
-  const audioPath = `temp_files/${title}_audio.mp4`
-  const vidoePath = `temp_files/${title}_vidoe.mp4`
-  const outputPath = `temp_files/${title}.mp4`
+  try {
+    try {
+      await bot.sendMessage(chatId, 'start audio')
+      await downloadStream(info, { quality: 'highestaudio' }, audioPath)
+      await bot.sendMessage(chatId, 'end audio')
+    } catch (error) {
+      bot.sendMessage('Error during aduio download', error.message)
+      throw error
+    }
 
-  await bot.sendMessage(chatId, 'start audio')
-  await downloadStream(info, { quality: 'highestaudio' }, audioPath)
-  await bot.sendMessage(chatId, 'end audio')
+    try {
+      await bot.sendMessage(chatId, 'start video')
+      await downloadStream(info, { quality: videoItag }, videoPath)
+      await bot.sendMessage(chatId, 'end video')
+    } catch (error) {
+      bot.sendMessage('Error during video download', error.message)
+      throw error
+    }
 
-  await bot.sendMessage(chatId, 'start video')
-  await downloadStream(info, { quality: videoItag }, vidoePath)
-  await bot.sendMessage(chatId, 'end video')
+    try {
+      await bot.sendMessage(chatId, 'start merge')
+      await mergeVideoAudio(audioPath, videoPath, outputPath)
+      await bot.sendMessage(chatId, 'end merge')
+    } catch (error) {
+      bot.sendMessage('Error during merge', error.message)
+      throw error
+    }
 
-  await bot.sendMessage(chatId, 'start merge')
-  await mergeVideoAudio(audioPath, vidoePath, outputPath)
-  await bot.sendMessage(chatId, 'end merge')
-
-  await bot.sendMessage(chatId, 'start send')
-  await bot.sendVideo(chatId, outputPath, { caption: title })
-  await bot.sendMessage(chatId, 'end send')
+    try {
+      await bot.sendMessage(chatId, 'start send')
+      await bot.sendVideo(chatId, outputPath, {
+        caption: info.videoDetails.title,
+        contentType: 'video/mp4',
+      })
+      await bot.sendMessage(chatId, 'end send')
+    } catch (error) {
+      bot.sendMessage('Error during upload to telegram', error.message)
+      throw error
+    }
+  } catch (error) {
+    console.error(error.message)
+  }
 })

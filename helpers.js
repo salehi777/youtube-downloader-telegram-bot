@@ -3,6 +3,9 @@ import ytdl from '@distube/ytdl-core'
 import ffmpeg from 'ffmpeg-static'
 import { spawn } from 'child_process'
 
+// filter audioandvideo/video/videoonly/audio/audioonly/ (format) => {}
+// quality highest/lowest/highestaudio/lowestaudio/highestvideo/lowestvideo
+
 export function groupBy(arr, key) {
   return arr.reduce((result, item) => {
     const groupKey = item[key]
@@ -12,6 +15,18 @@ export function groupBy(arr, key) {
     result[groupKey].push(item)
     return result
   }, {})
+}
+
+export function toValidFilename(str) {
+  // Remove or replace invalid characters for both Windows and Linux
+  // Windows: <>:"/\|?* and control chars (0-31), Linux: /
+  return str
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_') // Windows invalid chars
+    .replace(/[\/]/g, '_') // Linux invalid char (redundant for /)
+    .replace(/\s+/g, ' ') // Collapse whitespace
+    .replace(/^\.+/, '') // Remove leading dots (hidden files)
+    .replace(/\.+$/, '') // Remove trailing dots
+    .trim()
 }
 
 export const getVideoQualities = (info) => {
@@ -30,16 +45,16 @@ export const getVideoQualities = (info) => {
   return qualities
 }
 
-export const downloadStream = (info, options, filename) =>
+export const downloadStream = (info, options, filename, onProgress) =>
   new Promise((resolve, reject) => {
     const stream = ytdl.downloadFromInfo(info, options)
     const writeStream = fs.createWriteStream(filename)
 
     stream.pipe(writeStream)
 
-    stream.on('progress', (_, downloaded, total) => {
-      // console.log(Math.round((downloaded / total) * 100))
-    })
+    stream.on('progress', (_, downloaded, total) =>
+      onProgress?.(Math.round((downloaded / total) * 100))
+    )
 
     writeStream.on('finish', () => {
       resolve()
@@ -71,23 +86,9 @@ export const mergeVideoAudio = (audioPath, videoPath, outputPath) =>
       if (code === 0) {
         resolve()
       } else {
-        reject(new Error(`error ${code}`))
+        reject(new Error(`merge error ${code}`))
       }
     })
 
-    ffmpegProcess.on('error', (err) => {
-      reject(err)
-    })
+    ffmpegProcess.on('error', reject)
   })
-
-export function toValidFilename(str) {
-  // Remove or replace invalid characters for both Windows and Linux
-  // Windows: <>:"/\|?* and control chars (0-31), Linux: /
-  return str
-    .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_') // Windows invalid chars
-    .replace(/[\/]/g, '_') // Linux invalid char (redundant for /)
-    .replace(/\s+/g, ' ') // Collapse whitespace
-    .replace(/^\.+/, '') // Remove leading dots (hidden files)
-    .replace(/\.+$/, '') // Remove trailing dots
-    .trim()
-}
