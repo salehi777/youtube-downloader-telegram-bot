@@ -52,9 +52,15 @@ export const downloadStream = (info, options, filename, onProgress) =>
 
     stream.pipe(writeStream)
 
-    stream.on('progress', (_, downloaded, total) =>
-      onProgress?.(Math.round((downloaded / total) * 100))
-    )
+    let lastProgressTime = 0 // this get used to make sure each onProgress get called with 5s between
+    stream.on('progress', (_, downloaded, total) => {
+      if (!onProgress) return
+      const now = Date.now()
+      if (now - lastProgressTime >= 5000 || downloaded === total) {
+        onProgress(((downloaded / total) * 100).toFixed(2))
+        lastProgressTime = now
+      }
+    })
 
     writeStream.on('finish', () => {
       resolve()

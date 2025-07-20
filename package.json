@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start-local": "node locally.js",
-    "start-telegram": "nodemon telegram-bot.js"
+    "start-telegram": "node telegram-bot.js"
   },
   "dependencies": {
     "@distube/ytdl-core": "^4.16.12",

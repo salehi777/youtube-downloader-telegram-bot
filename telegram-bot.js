@@ -20,6 +20,9 @@ const youtubeRegex =
 bot.on('message', async (msg) => {
   const chatId = msg.chat.id
   const text = msg.text
+
+  if (text === '/start') return bot.sendMessage(chatId, 'Welcome')
+
   if (!youtubeRegex.test(text)) bot.sendMessage(chatId, 'Not a valid URL')
 })
 
@@ -35,16 +38,16 @@ bot.onText(youtubeRegex, async (msg, match) => {
 
   try {
     try {
-      info = await ytdl.getInfo(videoID)
-      // const infoJson = await fs.readFileSync(`${videoFolder}/info.json`, 'utf8')
-      // info = JSON.parse(infoJson)
+      // info = await ytdl.getInfo(videoID)
+      const infoJson = await fs.readFileSync(`${videoFolder}/info.json`, 'utf8')
+      info = JSON.parse(infoJson)
     } catch (error) {
       bot.sendMessage(chatId, 'Error during getting info')
       throw error
     }
 
-    if (fs.existsSync(videoFolder))
-      fs.rmSync(videoFolder, { recursive: true, force: true })
+    // if (fs.existsSync(videoFolder))
+    //   fs.rmSync(videoFolder, { recursive: true, force: true })
     fs.mkdirSync(videoFolder, { recursive: true })
 
     fs.writeFileSync(
@@ -81,39 +84,54 @@ bot.on('callback_query', async (callbackQuery) => {
   const data = callbackQuery.data
   const [videoFolder, videoItag] = data.split('|')
 
-  const audioPath = `${videoFolder}/audio.mp4`
-  const videoPath = `${videoFolder}/video.mp4`
-  const outputPath = `${videoFolder}/final.mp4`
-
   const infoJson = await fs.readFileSync(videoFolder + '/info.json', 'utf8')
   const info = JSON.parse(infoJson)
 
-  const hintMessage = await bot.sendMessage(chatId, 'Downloading Audio ...')
+  const audioPath = `${videoFolder}/audio.mp4`
+  const videoPath = `${videoFolder}/video.mp4`
+  const outputPath = `${videoFolder}/${toValidFilename(
+    info.videoDetails.title
+  )}.mp4`
+
+  const hintMessage = await bot.sendMessage(chatId, 'Downloading Audio 0% ...')
+  const editHint = (text) => {
+    try {
+      bot.editMessageText(text, {
+        chat_id: chatId,
+        message_id: hintMessage.message_id,
+      })
+    } catch (error) {}
+  }
 
   try {
     try {
-      await downloadStream(info, { quality: 'highestaudio' }, audioPath)
+      await downloadStream(
+        info,
+        { quality: 'highestaudio' },
+        audioPath,
+        (percent) => editHint(`Downloading Audio ${percent}% ...`)
+      )
     } catch (error) {
       bot.sendMessage(chatId, 'Error during aduio download')
       throw error
     }
 
     try {
-      await bot.editMessageText('Downloading Video ...', {
-        chat_id: chatId,
-        message_id: hintMessage.message_id,
-      })
-      await downloadStream(info, { quality: videoItag }, videoPath)
+      editHint('Downloading Video 0% ...')
+      await downloadStream(
+        info,
+        { quality: videoItag },
+        videoPath,
+        (percent) => editHint(`Downloading Video ${percent}% ...`)
+        //
+      )
     } catch (error) {
       bot.sendMessage(chatId, 'Error during video download')
       throw error
     }
 
     try {
-      await bot.editMessageText('Merging ...', {
-        chat_id: chatId,
-        message_id: hintMessage.message_id,
-      })
+      editHint('Merging ...')
       await mergeVideoAudio(audioPath, videoPath, outputPath)
     } catch (error) {
       bot.sendMessage(chatId, 'Error during merge')
@@ -121,10 +139,7 @@ bot.on('callback_query', async (callbackQuery) => {
     }
 
     try {
-      await bot.editMessageText('Uploading ...', {
-        chat_id: chatId,
-        message_id: hintMessage.message_id,
-      })
+      editHint('Uploading ...')
       await bot.sendVideo(chatId, outputPath, {
         caption: info.videoDetails.title,
         contentType: 'video/mp4',
