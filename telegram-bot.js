@@ -1,21 +1,23 @@
+import 'dotenv/config'
 import ytdl from '@distube/ytdl-core'
 import fs from 'fs'
 import {
+  chunkArray,
   downloadStream,
   getVideoQualities,
   mergeVideoAudio,
   toValidFilename,
-} from './helpers.js'
-import TelegramBot from 'node-telegram-bot-api'
-import 'dotenv/config'
+  youtubeRegex,
+} from './lib/index.js'
+import bot from './lib/create_bot.js'
 
-const botToken = process.env.BOT_TOKEN
-const bot = new TelegramBot(botToken, { polling: true })
-bot.on('polling_error', (error) => console.log('polling_error,', error.message))
-bot.on('error', (error) => console.log('error,', error.message))
-
-const youtubeRegex =
-  /(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)[\w-]{11}/
+let skips = {
+  skipInfo: false,
+  skipAudio: false,
+  skipVideo: false,
+  skipMerge: false,
+  skipUpload: false,
+}
 
 bot.on('message', async (msg) => {
   const chatId = msg.chat.id
@@ -37,37 +39,28 @@ bot.onText(youtubeRegex, async (msg, match) => {
   let info
 
   try {
-    try {
-      // info = await ytdl.getInfo(videoID)
-      const infoJson = await fs.readFileSync(`${videoFolder}/info.json`, 'utf8')
-      info = JSON.parse(infoJson)
-    } catch (error) {
-      bot.sendMessage(chatId, 'Error during getting info')
-      throw error
-    }
+    if (skips.skipInfo)
+      info = JSON.parse(fs.readFileSync(`${videoFolder}/info.json`, 'utf8'))
+    else info = await ytdl.getInfo(videoID)
 
-    // if (fs.existsSync(videoFolder))
-    //   fs.rmSync(videoFolder, { recursive: true, force: true })
     fs.mkdirSync(videoFolder, { recursive: true })
-
     fs.writeFileSync(
       `${videoFolder}/info.json`,
       JSON.stringify(info, null, 2),
       'utf-8'
     )
 
-    const qualities = getVideoQualities(info)
+    let qualities = getVideoQualities(info)
+    qualities = qualities.map(([quality, itag]) => [
+      { text: quality, callback_data: `${videoFolder}|${itag}` },
+    ])
+    qualities = chunkArray(qualities.flat(), 3)
 
-    const options = {
+    await bot.sendMessage(chatId, 'Choose quality', {
       reply_markup: {
-        inline_keyboard: Object.entries(qualities)
-          .reverse()
-          .map(([quality, format]) => [
-            { text: quality, callback_data: `${videoFolder}|${format.itag}` },
-          ]),
+        inline_keyboard: qualities,
       },
-    }
-    await bot.sendMessage(chatId, 'Choose quality', options)
+    })
   } catch (error) {
     console.error(error.message)
     bot.sendMessage(chatId, error.message)
@@ -84,14 +77,12 @@ bot.on('callback_query', async (callbackQuery) => {
   const data = callbackQuery.data
   const [videoFolder, videoItag] = data.split('|')
 
-  const infoJson = await fs.readFileSync(videoFolder + '/info.json', 'utf8')
-  const info = JSON.parse(infoJson)
+  const info = JSON.parse(fs.readFileSync(`${videoFolder}/info.json`, 'utf8'))
+  const title = info.videoDetails.title
 
   const audioPath = `${videoFolder}/audio.mp4`
   const videoPath = `${videoFolder}/video.mp4`
-  const outputPath = `${videoFolder}/${toValidFilename(
-    info.videoDetails.title
-  )}.mp4`
+  const outputPath = `${videoFolder}/${toValidFilename(title)}.mp4`
 
   const hintMessage = await bot.sendMessage(chatId, 'Downloading Audio 0% ...')
   const editHint = (text) => {
@@ -104,19 +95,16 @@ bot.on('callback_query', async (callbackQuery) => {
   }
 
   try {
-    try {
+    if (!skips.skipAudio) {
       await downloadStream(
         info,
         { quality: 'highestaudio' },
         audioPath,
         (percent) => editHint(`Downloading Audio ${percent}% ...`)
       )
-    } catch (error) {
-      bot.sendMessage(chatId, 'Error during aduio download')
-      throw error
     }
 
-    try {
+    if (!skips.skipVideo) {
       editHint('Downloading Video 0% ...')
       await downloadStream(
         info,
@@ -125,28 +113,20 @@ bot.on('callback_query', async (callbackQuery) => {
         (percent) => editHint(`Downloading Video ${percent}% ...`)
         //
       )
-    } catch (error) {
-      bot.sendMessage(chatId, 'Error during video download')
-      throw error
     }
 
-    try {
+    if (!skips.skipMerge) {
       editHint('Merging ...')
       await mergeVideoAudio(audioPath, videoPath, outputPath)
-    } catch (error) {
-      bot.sendMessage(chatId, 'Error during merge')
-      throw error
     }
 
-    try {
+    if (!skips.skipUpload) {
       editHint('Uploading ...')
-      await bot.sendVideo(chatId, outputPath, {
-        caption: info.videoDetails.title,
+      const videoStream = fs.createReadStream(outputPath)
+      await bot.sendVideo(chatId, videoStream, {
+        caption: title,
         contentType: 'video/mp4',
       })
-    } catch (error) {
-      bot.sendMessage(chatId, 'Error during upload to telegram')
-      throw error
     }
   } catch (error) {
     console.error(error.message)

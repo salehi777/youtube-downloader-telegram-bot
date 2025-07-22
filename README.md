@@ -48,7 +48,6 @@ gost -L http://:8080 -F ss://shadowsocks_proxy
 
 - proxy is 'http://127.0.0.1:8080'
 
-
 # Re-Encode
 
 Some videos after uploading on telegram don't show time or thumbnail and don't have forward/backward with double tab. To fix this you can re-encode them using one of these commands (output file size will be bigger and it take CPU/RAM to run)
@@ -60,3 +59,13 @@ ffmpeg -i input.mp4 -c:v libx264 -crf 23 -maxrate 4.5M -preset faster -flags +gl
 
 ffmpeg -i input.mp4 -c:v libx264 -g 30 -c:a copy -movflags +faststart output.mp4
 ```
+
+to
+re encode
+show each quality size
+
+## 📝 To-Do
+
+- [ ] Add Re-Encode
+- [ ] Show each quality size
+- [ ] Show 4 steps progress in one message
