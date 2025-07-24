@@ -20,33 +20,23 @@ bot.on('message', async (msg) => {
 
 bot.onText(youtubeWithCommandRegex, async (msg, match) => {
   if (!match) return
-  const [_, command, videoID] = match
+  const command = (match[1] ? match[1] : 'normal').toLowerCase()
+  const videoID = match[2]
   const chatId = msg.chat.id
   const videoFolder = 'downloaded/' + videoID
 
   try {
-    switch ((command || '').toLowerCase()) {
-      case 'undefined':
+    switch (command) {
+      case 'normal':
         await saveInfo({ chatId, videoID, videoFolder })
-        await showQualitiesKeyboard({ chatId, videoFolder })
-        break
-      case 'reencode':
-        processVideo({
-          chatId,
-          videoFolder,
-          includes: {
-            includeAudio: false,
-            includeVideo: false,
-            includeMerge: false,
-            includeUpload: true,
-            includeReEncode: true,
-          },
-        })
         break
       case 'skipinfo':
-        // todo
+      case 'reencode':
         break
+      default:
+        throw new Error('Unknown command')
     }
+    await showQualitiesKeyboard({ command, chatId, videoFolder })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     console.error(message)
@@ -61,20 +51,39 @@ bot.on('callback_query', async (callbackQuery) => {
   bot.deleteMessage(chatId, callbackQuery.message.message_id)
 
   const data = callbackQuery.data as string
-  const [videoFolder, videoItag] = data.split('|')
+  const [command, videoFolder, videoItag] = data.split('|')
 
   try {
-    processVideo({
+    let includes
+    switch (command) {
+      case 'normal':
+      case 'skipinfo':
+        includes = {
+          audio: true,
+          video: true,
+          merge: true,
+          upload: true,
+          reEncode: false,
+        }
+        break
+      case 'reencode':
+        includes = {
+          audio: false,
+          video: false,
+          merge: false,
+          upload: true,
+          reEncode: true,
+        }
+        break
+      default:
+        throw new Error('Unknown command')
+    }
+
+    await processVideo({
       chatId,
       videoFolder,
       videoItag,
-      includes: {
-        includeAudio: true,
-        includeVideo: true,
-        includeMerge: true,
-        includeUpload: true,
-        includeReEncode: false,
-      },
+      includes,
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -89,6 +98,7 @@ interface saveInfoArgs {
   videoFolder: string
 }
 interface showQualitiesKeyboardArgs {
+  command: string
   chatId: TelegramBot.ChatId
   videoFolder: string
 }
@@ -97,11 +107,11 @@ interface processVideoArgs {
   videoFolder: string
   videoItag?: string | number
   includes: {
-    includeAudio?: boolean
-    includeVideo?: boolean
-    includeMerge?: boolean
-    includeUpload?: boolean
-    includeReEncode?: boolean
+    audio?: boolean
+    video?: boolean
+    merge?: boolean
+    upload?: boolean
+    reEncode?: boolean
   }
 }
 
@@ -123,6 +133,7 @@ const saveInfo = async ({ chatId, videoID, videoFolder }: saveInfoArgs) => {
 }
 
 const showQualitiesKeyboard = async ({
+  command,
   chatId,
   videoFolder,
 }: showQualitiesKeyboardArgs) => {
@@ -130,7 +141,7 @@ const showQualitiesKeyboard = async ({
 
   const qualities = getVideoQualities(info)
     .map(([quality, itag]) => [
-      { text: quality, callback_data: `${videoFolder}|${itag}` },
+      { text: quality, callback_data: `${command}|${videoFolder}|${itag}` },
     ])
     .flat()
 
@@ -163,7 +174,7 @@ const processVideo = async ({
     })
   }
 
-  if (includes.includeAudio) {
+  if (includes.audio) {
     editHint('Downloading Audio 0% ...')
     await downloadStream(
       info,
@@ -173,7 +184,7 @@ const processVideo = async ({
     )
   }
 
-  if (includes.includeVideo) {
+  if (includes.video) {
     editHint('Downloading Video 0% ...')
     await downloadStream(
       info,
@@ -184,20 +195,20 @@ const processVideo = async ({
     )
   }
 
-  if (includes.includeMerge) {
+  if (includes.merge) {
     editHint('Merging ...')
     await mergeVideoAudio(audioPath, videoPath, outputPath)
   }
 
-  if (includes.includeReEncode) {
+  if (includes.reEncode) {
     editHint('Re-Encoding ...')
     await reEncodeVideo(outputPath, outputRePath)
   }
 
-  if (includes.includeUpload) {
+  if (includes.upload) {
     editHint('Uploading ...')
     const videoStream = fs.createReadStream(
-      includes.includeReEncode ? outputRePath : outputPath
+      includes.reEncode ? outputRePath : outputPath
     )
     await bot.sendVideo(chatId, videoStream, {
       caption: title,
