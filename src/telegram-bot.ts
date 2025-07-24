@@ -10,6 +10,8 @@ import TelegramBot from 'node-telegram-bot-api'
 
 const bot = createBot()
 
+// bot events
+// called for any message
 bot.on('message', async (msg) => {
   const chatId = msg.chat.id
   const text = msg.text as string
@@ -18,6 +20,7 @@ bot.on('message', async (msg) => {
     bot.sendMessage(chatId, 'Not a valid message')
 })
 
+// called when "command <yt-link>"
 bot.onText(youtubeWithCommandRegex, async (msg, match) => {
   if (!match) return
   const command = (match[1] ? match[1] : 'normal').toLowerCase()
@@ -44,6 +47,7 @@ bot.onText(youtubeWithCommandRegex, async (msg, match) => {
   }
 })
 
+// called for inline keyboard
 bot.on('callback_query', async (callbackQuery) => {
   if (!callbackQuery.message) return
   const chatId = callbackQuery.message.chat.id
@@ -92,29 +96,9 @@ bot.on('callback_query', async (callbackQuery) => {
   }
 })
 
-interface saveInfoArgs {
-  chatId: TelegramBot.ChatId
-  videoID: string
-  videoFolder: string
-}
-interface showQualitiesKeyboardArgs {
-  command: string
-  chatId: TelegramBot.ChatId
-  videoFolder: string
-}
-interface processVideoArgs {
-  chatId: TelegramBot.ChatId
-  videoFolder: string
-  videoItag?: string | number
-  includes: {
-    audio?: boolean
-    video?: boolean
-    merge?: boolean
-    upload?: boolean
-    reEncode?: boolean
-  }
-}
+// ----------------------------------------------------------------
 
+// get video info and saves it in downloaded/<video-id>/info.json
 const saveInfo = async ({ chatId, videoID, videoFolder }: saveInfoArgs) => {
   const { message_id } = await bot.sendMessage(chatId, 'Getting Info ...')
 
@@ -124,6 +108,7 @@ const saveInfo = async ({ chatId, videoID, videoFolder }: saveInfoArgs) => {
 
   if (!fs.existsSync(videoFolder))
     fs.mkdirSync(videoFolder, { recursive: true })
+
   if (!fs.existsSync(`${videoFolder}/info.json`))
     fs.writeFileSync(
       `${videoFolder}/info.json`,
@@ -132,6 +117,7 @@ const saveInfo = async ({ chatId, videoID, videoFolder }: saveInfoArgs) => {
     )
 }
 
+// show inline keyboard with qualities
 const showQualitiesKeyboard = async ({
   command,
   chatId,
@@ -152,6 +138,9 @@ const showQualitiesKeyboard = async ({
   })
 }
 
+// download audio and video, merge, re-encode and upload
+// 1- downloaded/<video-id>/info.json should exist
+// 2- some steps can be skipped using "includes"
 const processVideo = async ({
   chatId,
   videoFolder,
@@ -216,4 +205,27 @@ const processVideo = async ({
   }
 
   bot.deleteMessage(chatId, hintMessage.message_id)
+}
+
+interface saveInfoArgs {
+  chatId: TelegramBot.ChatId
+  videoID: string
+  videoFolder: string
+}
+interface showQualitiesKeyboardArgs {
+  command: string
+  chatId: TelegramBot.ChatId
+  videoFolder: string
+}
+interface processVideoArgs {
+  chatId: TelegramBot.ChatId
+  videoFolder: string
+  videoItag?: string | number
+  includes: {
+    audio?: boolean
+    video?: boolean
+    merge?: boolean
+    upload?: boolean
+    reEncode?: boolean
+  }
 }

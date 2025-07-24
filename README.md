@@ -66,6 +66,7 @@ show each quality size
 
 ## 📝 To-Do
 
-- [ ] Add Re-Encode
-- [ ] Show each quality size
+- [x] Add Re-Encode
+- [ ] Add quality label to output file
+- [ ] Show some video info before selecting quality
 - [ ] Show 4 steps progress in one message
