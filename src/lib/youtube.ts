@@ -1,6 +1,6 @@
 import fs from 'fs'
 import ytdl from '@distube/ytdl-core'
-import { groupBy } from './index.js'
+import { groupBy } from './helpers.js'
 
 // filter audioandvideo/video/videoonly/audio/audioonly/ (format) => {}
 // quality highest/lowest/highestaudio/lowestaudio/highestvideo/lowestvideo

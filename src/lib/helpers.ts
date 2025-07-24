@@ -21,12 +21,10 @@ export function toValidFilename(str) {
     .trim()
 }
 
-
 export function chunkArray(arr, size) {
-  const result = [];
+  const result = []
   for (let i = 0; i < arr.length; i += size) {
-    result.push(arr.slice(i, i + size));
+    result.push(arr.slice(i, i + size))
   }
-  return result;
+  return result
 }
-

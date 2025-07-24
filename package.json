@@ -4,14 +4,21 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "start-local": "node locally.js",
-    "start-telegram": "node telegram-bot.js"
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/telegram-bot.ts",
+    "ts": "tsc --noEmit"
   },
   "dependencies": {
     "@distube/ytdl-core": "^4.16.12",
     "dotenv": "^17.2.0",
     "ffmpeg-static": "^5.2.0",
-    "node-telegram-bot-api": "^0.66.0",
-    "nodemon": "^3.1.10"
+    "node-telegram-bot-api": "^0.66.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.1.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
   }
 }

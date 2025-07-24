@@ -1,4 +1,4 @@
-import { youtubeRegex } from './index.js'
+import { youtubeRegex } from "./reg.js"
 
 export const getValidYoutubeUrl = async (rl) => {
   return new Promise((resolve) => {
