@@ -1,7 +1,11 @@
 import ffmpeg from 'ffmpeg-static'
-import { spawn } from 'child_process'
+import { ChildProcess, spawn } from 'child_process'
 
-export const mergeVideoAudio = (audioPath, videoPath, outputPath) =>
+export const mergeVideoAudio = (
+  audioPath: string,
+  videoPath: string,
+  outputPath: string
+) =>
   new Promise((resolve, reject) => {
     const args = [
       '-i',
@@ -19,17 +23,17 @@ export const mergeVideoAudio = (audioPath, videoPath, outputPath) =>
       outputPath,
     ]
 
-    const ffmpegProcess = spawn(ffmpeg, args)
+    const ffmpegProcess: ChildProcess = spawn(ffmpeg as string, args)
 
     ffmpegProcess.on('close', (code) => {
-      if (code === 0) resolve()
+      if (code === 0) resolve(null)
       else reject(new Error(`merge error ${code}`))
     })
 
     ffmpegProcess.on('error', reject)
   })
 
-export const reEncodeVideo = (inputPath, outputPath) =>
+export const reEncodeVideo = (inputPath: string, outputPath: string) =>
   new Promise((resolve, reject) => {
     const ffmpegArgs = [
       '-i',
@@ -46,15 +50,15 @@ export const reEncodeVideo = (inputPath, outputPath) =>
       outputPath,
     ]
 
-    const ffmpegProcess = spawn(ffmpeg, ffmpegArgs)
+    const ffmpegProcess: ChildProcess = spawn(ffmpeg as string, ffmpegArgs)
 
-    const cpulimitArgs = ['-l', '100', '-p', ffmpegProcess.pid]
-    const cpulimitProcess = spawn('cpulimit', cpulimitArgs)
+    const cpulimitArgs = ['-l', '100', '-p', String(ffmpegProcess.pid)]
+    const cpulimitProcess: ChildProcess = spawn('cpulimit', cpulimitArgs)
 
-    ffmpegProcess.stderr.on('data', (data) => reject(new Error(data)))
+    ffmpegProcess.stderr?.on('data', (data) => reject(new Error(data)))
 
     ffmpegProcess.on('close', (code) => {
-      if (code === 0) resolve()
+      if (code === 0) resolve(null)
       else reject(new Error(`re-encode error ${code}`))
     })
 

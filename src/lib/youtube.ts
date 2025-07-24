@@ -1,26 +1,31 @@
 import fs from 'fs'
-import ytdl from '@distube/ytdl-core'
+import ytdl, { downloadOptions, videoInfo } from '@distube/ytdl-core'
 import { groupBy } from './helpers.js'
 
 // filter audioandvideo/video/videoonly/audio/audioonly/ (format) => {}
 // quality highest/lowest/highestaudio/lowestaudio/highestvideo/lowestvideo
 
-export const getVideoQualities = (info) => {
+export const getVideoQualities = (info: videoInfo) => {
   let videoFormats = ytdl.filterFormats(info.formats, 'videoonly')
   videoFormats = ytdl.filterFormats(
     videoFormats,
     (format) => format.container === 'mp4'
   )
 
-  let qualities = groupBy(videoFormats, 'qualityLabel')
-  qualities = Object.entries(qualities).map(([key, value]) => [
+  const qualitiesGrouped = groupBy(videoFormats, 'qualityLabel')
+  const qualities = Object.entries(qualitiesGrouped).map(([key, value]) => [
     key,
-    ytdl.chooseFormat(value, { quality: 'lowestvideo' }).itag
+    ytdl.chooseFormat(value, { quality: 'lowestvideo' }).itag,
   ])
   return qualities.reverse()
 }
 
-export const downloadStream = (info, options, filename, onProgress) =>
+export const downloadStream = (
+  info: videoInfo,
+  options: downloadOptions,
+  filename: string,
+  onProgress?: (percnet: string) => void
+) =>
   new Promise((resolve, reject) => {
     const stream = ytdl.downloadFromInfo(info, options)
     const writeStream = fs.createWriteStream(filename)
@@ -38,7 +43,7 @@ export const downloadStream = (info, options, filename, onProgress) =>
     })
 
     writeStream.on('finish', () => {
-      resolve()
+      resolve(null)
     })
 
     stream.on('error', reject)

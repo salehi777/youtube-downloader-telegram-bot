@@ -1,4 +1,9 @@
-export function groupBy(arr, key) {
+export function groupBy(
+  arr: any[],
+  key: string
+): {
+  [s: string]: any
+} {
   return arr.reduce((result, item) => {
     const groupKey = item[key]
     if (!result[groupKey]) {
@@ -9,7 +14,7 @@ export function groupBy(arr, key) {
   }, {})
 }
 
-export function toValidFilename(str) {
+export function toValidFilename(str: string) {
   // Remove or replace invalid characters for both Windows and Linux
   // Windows: <>:"/\|?* and control chars (0-31), Linux: /
   return str
@@ -21,8 +26,8 @@ export function toValidFilename(str) {
     .trim()
 }
 
-export function chunkArray(arr, size) {
-  const result = []
+export function chunkArray(arr: any[], size: number) {
+  const result: any[] = []
   for (let i = 0; i < arr.length; i += size) {
     result.push(arr.slice(i, i + size))
   }

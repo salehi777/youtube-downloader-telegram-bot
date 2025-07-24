@@ -1,17 +1,15 @@
 import 'dotenv/config'
 import ytdl from '@distube/ytdl-core'
 import fs from 'fs'
-import {
-  chunkArray,
-  downloadStream,
-  getVideoQualities,
-  mergeVideoAudio,
-  toValidFilename,
-  youtubeRegex,
-  getValidYoutubeUrl,
-  getSelectedQuality,
-} from './lib/index.js'
 import readline from 'readline'
+import { createBot } from './lib/create_bot'
+import { youtubeWithCommandRegex } from './lib/reg'
+import { downloadStream, getVideoQualities } from './lib/youtube'
+import { chunkArray, toValidFilename } from './lib/helpers'
+import { mergeVideoAudio, reEncodeVideo } from './lib/ffmpeg'
+import { getSelectedQuality, getValidYoutubeUrl } from './lib/terminal'
+
+const bot = createBot()
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -72,7 +70,8 @@ async function main() {
     console.log('Merging ...')
     await mergeVideoAudio(audioPath, videoPath, outputPath)
   }
+
+  rl.close()
 }
 
-await main()
-rl.close()
+main()

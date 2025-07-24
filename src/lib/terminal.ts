@@ -1,4 +1,5 @@
-import { youtubeRegex } from "./reg.js"
+import { Readline } from 'readline/promises'
+import { youtubeRegex } from './reg'
 
 export const getValidYoutubeUrl = async (rl) => {
   return new Promise((resolve) => {
@@ -16,7 +17,10 @@ export const getValidYoutubeUrl = async (rl) => {
   })
 }
 
-export async function getSelectedQuality(rl, qualities) {
+export async function getSelectedQuality(
+  rl,
+  qualities: any[]
+): Promise<number> {
   console.log('Select quality:')
   qualities.forEach(([quality, itag], i) => console.log(`${i}-${quality}`))
 
