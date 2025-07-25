@@ -60,13 +60,9 @@ ffmpeg -i input.mp4 -c:v libx264 -crf 23 -maxrate 4.5M -preset faster -flags +gl
 ffmpeg -i input.mp4 -c:v libx264 -g 30 -c:a copy -movflags +faststart output.mp4
 ```
 
-to
-re encode
-show each quality size
-
-## 📝 To-Do
+# 📝 To-Do
 
 - [x] Add Re-Encode
-- [ ] Add quality label to output file
+- [x] Add quality label to output file
 - [ ] Show some video info before selecting quality
 - [ ] Show 4 steps progress in one message

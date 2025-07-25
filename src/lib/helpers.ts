@@ -24,6 +24,7 @@ export function toValidFilename(str: string) {
     .replace(/^\.+/, '') // Remove leading dots (hidden files)
     .replace(/\.+$/, '') // Remove trailing dots
     .trim()
+    .slice(0, 48) // telegram max filename is 64
 }
 
 export function chunkArray(arr: any[], size: number) {

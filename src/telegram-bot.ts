@@ -1,5 +1,5 @@
 import 'dotenv/config'
-import ytdl from '@distube/ytdl-core'
+import ytdl, { videoInfo } from '@distube/ytdl-core'
 import fs from 'fs'
 import { createBot } from './lib/create_bot'
 import { youtubeWithCommandRegex } from './lib/reg'
@@ -11,7 +11,7 @@ import TelegramBot from 'node-telegram-bot-api'
 const bot = createBot()
 
 // bot events
-// called for any message
+// calls on any message
 bot.on('message', async (msg) => {
   const chatId = msg.chat.id
   const text = msg.text as string
@@ -20,7 +20,7 @@ bot.on('message', async (msg) => {
     bot.sendMessage(chatId, 'Not a valid message')
 })
 
-// called when "command <yt-link>"
+// calls on "command <yt-link>"
 bot.onText(youtubeWithCommandRegex, async (msg, match) => {
   if (!match) return
   const command = (match[1] ? match[1] : 'normal').toLowerCase()
@@ -47,7 +47,7 @@ bot.onText(youtubeWithCommandRegex, async (msg, match) => {
   }
 })
 
-// called for inline keyboard
+// calls on inline keyboard pressed
 bot.on('callback_query', async (callbackQuery) => {
   if (!callbackQuery.message) return
   const chatId = callbackQuery.message.chat.id
@@ -86,7 +86,7 @@ bot.on('callback_query', async (callbackQuery) => {
     await processVideo({
       chatId,
       videoFolder,
-      videoItag,
+      videoItag: Number(videoItag),
       includes,
     })
   } catch (error) {
@@ -147,13 +147,19 @@ const processVideo = async ({
   videoItag,
   includes,
 }: processVideoArgs) => {
-  const info = JSON.parse(fs.readFileSync(`${videoFolder}/info.json`, 'utf8'))
+  const info: videoInfo = JSON.parse(
+    fs.readFileSync(`${videoFolder}/info.json`, 'utf8')
+  )
   const title = info.videoDetails.title
+  const qualityLabel = info.formats.find(
+    ({ itag }) => itag === videoItag
+  )?.qualityLabel
 
   const audioPath = `${videoFolder}/audio.mp4`
-  const videoPath = `${videoFolder}/video.mp4`
-  const outputPath = `${videoFolder}/${toValidFilename(title)}.mp4`
-  const outputRePath = `${videoFolder}/${toValidFilename(title)}_reencode.mp4`
+  const videoPath = `${videoFolder}/video_${qualityLabel}.mp4`
+  const subPath = `${videoFolder}/${toValidFilename(title)}_${qualityLabel}`
+  const outputPath = `${subPath}.mp4`
+  const outputRePath = `${subPath}_re.mp4`
 
   const hintMessage = await bot.sendMessage(chatId, 'Starting ...')
   const editHint = (text) => {
@@ -220,7 +226,7 @@ interface showQualitiesKeyboardArgs {
 interface processVideoArgs {
   chatId: TelegramBot.ChatId
   videoFolder: string
-  videoItag?: string | number
+  videoItag: number
   includes: {
     audio?: boolean
     video?: boolean
