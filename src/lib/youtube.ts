@@ -24,7 +24,7 @@ export const downloadStream = (
   info: videoInfo,
   options: downloadOptions,
   filename: string,
-  onProgress?: (percnet: string) => void
+  onProgress?: (percnet: number) => void
 ) =>
   new Promise((resolve, reject) => {
     const stream = ytdl.downloadFromInfo(info, options)
@@ -37,7 +37,7 @@ export const downloadStream = (
       if (!onProgress) return
       const now = Date.now()
       if (now - lastProgressTime >= 5000 || downloaded === total) {
-        onProgress(((downloaded / total) * 100).toFixed(2))
+        onProgress(Math.round((downloaded / total) * 100))
         lastProgressTime = now
       }
     })

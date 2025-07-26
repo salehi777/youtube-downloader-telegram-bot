@@ -161,47 +161,68 @@ const processVideo = async ({
   const outputPath = `${subPath}.mp4`
   const outputRePath = `${subPath}_re.mp4`
 
-  const hintMessage = await bot.sendMessage(chatId, 'Starting ...')
-  const editHint = (text) => {
+  // manage board
+  const boardMessage = await bot.sendMessage(chatId, 'Starting ...')
+  let board: Board = {
+    audio: includes.audio ? 'not-started' : 'not-included',
+    video: includes.video ? 'not-started' : 'not-included',
+    merge: includes.merge ? 'not-started' : 'not-included',
+    reEncode: includes.reEncode ? 'not-started' : 'not-included',
+    upload: includes.upload ? 'not-started' : 'not-included',
+  }
+  const editBoard = async (newBoard: Partial<Board>) => {
+    board = { ...board, ...newBoard }
+    const text = [
+      getBoardItemText('Audio', board.audio),
+      getBoardItemText('Video', board.video),
+      getBoardItemText('Merge', board.merge),
+      getBoardItemText('Re-Encode', board.reEncode),
+      getBoardItemText('Upload', board.upload),
+    ]
+      .filter((f) => f)
+      .join('\n')
     bot.editMessageText(text, {
       chat_id: chatId,
-      message_id: hintMessage.message_id,
+      message_id: boardMessage.message_id,
     })
   }
 
   if (includes.audio) {
-    editHint('Downloading Audio 0% ...')
+    await editBoard({ audio: 0 })
     await downloadStream(
       info,
       { quality: 'highestaudio' },
       audioPath,
-      (percent) => editHint(`Downloading Audio ${percent}% ...`)
+      async (percent) => await editBoard({ audio: percent })
     )
+    await editBoard({ audio: 'finished' })
   }
 
   if (includes.video) {
-    editHint('Downloading Video 0% ...')
+    await editBoard({ video: 0 })
     await downloadStream(
       info,
       { quality: videoItag },
       videoPath,
-      (percent) => editHint(`Downloading Video ${percent}% ...`)
-      //
+      async (percent) => await editBoard({ video: percent })
     )
+    await editBoard({ video: 'finished' })
   }
 
   if (includes.merge) {
-    editHint('Merging ...')
+    await editBoard({ merge: 'in-progress' })
     await mergeVideoAudio(audioPath, videoPath, outputPath)
+    await editBoard({ merge: 'finished' })
   }
 
   if (includes.reEncode) {
-    editHint('Re-Encoding ...')
+    await editBoard({ reEncode: 'in-progress' })
     await reEncodeVideo(outputPath, outputRePath)
+    await editBoard({ reEncode: 'finished' })
   }
 
   if (includes.upload) {
-    editHint('Uploading ...')
+    await editBoard({ upload: 'in-progress' })
     const videoStream = fs.createReadStream(
       includes.reEncode ? outputRePath : outputPath
     )
@@ -210,7 +231,24 @@ const processVideo = async ({
     })
   }
 
-  bot.deleteMessage(chatId, hintMessage.message_id)
+  await bot.deleteMessage(chatId, boardMessage.message_id)
+}
+
+const getBoardItemText = (label: string, item: BoardItem) => {
+  if (item === 'not-included') return
+  return (
+    label +
+    ': ' +
+    (item === 'not-started'
+      ? '⏳'
+      : item === 'in-progress'
+      ? '🔄'
+      : item === 'finished'
+      ? '✅'
+      : // : item === 'not-included'
+        // ? '❌'
+        item + '%')
+  )
 }
 
 interface saveInfoArgs {
@@ -234,4 +272,17 @@ interface processVideoArgs {
     upload?: boolean
     reEncode?: boolean
   }
+}
+type BoardItem =
+  | 'not-started'
+  | 'in-progress'
+  | 'finished'
+  | 'not-included'
+  | number
+interface Board {
+  audio: BoardItem
+  video: BoardItem
+  merge: BoardItem
+  reEncode: BoardItem
+  upload: BoardItem
 }

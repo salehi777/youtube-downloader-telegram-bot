@@ -64,5 +64,6 @@ ffmpeg -i input.mp4 -c:v libx264 -g 30 -c:a copy -movflags +faststart output.mp4
 
 - [x] Add Re-Encode
 - [x] Add quality label to output file
-- [ ] Show some video info before selecting quality
-- [ ] Show 4 steps progress in one message
+- [ ] Show some video info before selecting quality and final caption
+- [x] Show 4 steps progress in one message
+- [ ] Fix README
