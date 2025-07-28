@@ -1,11 +1,11 @@
 import 'dotenv/config'
 import ytdl, { videoInfo } from '@distube/ytdl-core'
 import fs from 'fs'
-import { createBot } from './lib/create_bot'
-import { youtubeWithCommandRegex } from './lib/reg'
-import { downloadStream, getVideoQualities } from './lib/youtube'
-import { chunkArray, toValidFilename } from './lib/helpers'
-import { mergeVideoAudio, reEncodeVideo } from './lib/ffmpeg'
+import { createBot } from './lib/create_bot.js'
+import { youtubeWithCommandRegex } from './lib/reg.js'
+import { downloadStream, getVideoQualities } from './lib/youtube.js'
+import { chunkArray, toValidFilename } from './lib/helpers.js'
+import { mergeVideoAudio, reEncodeVideo } from './lib/ffmpeg.js'
 import TelegramBot from 'node-telegram-bot-api'
 
 const bot = createBot()
@@ -35,6 +35,7 @@ bot.onText(youtubeWithCommandRegex, async (msg, match) => {
         break
       case 'skipinfo':
       case 'reencode':
+      case 'uploadonly':
         break
       default:
         throw new Error('Unknown command')
@@ -66,8 +67,8 @@ bot.on('callback_query', async (callbackQuery) => {
           audio: true,
           video: true,
           merge: true,
-          upload: true,
           reEncode: false,
+          upload: true,
         }
         break
       case 'reencode':
@@ -75,8 +76,17 @@ bot.on('callback_query', async (callbackQuery) => {
           audio: false,
           video: false,
           merge: false,
-          upload: true,
           reEncode: true,
+          upload: true,
+        }
+        break
+      case 'uploadonly':
+        includes = {
+          audio: false,
+          video: false,
+          merge: false,
+          reEncode: false,
+          upload: true,
         }
         break
       default:
@@ -227,7 +237,9 @@ const processVideo = async ({
       includes.reEncode ? outputRePath : outputPath
     )
     await bot.sendVideo(chatId, videoStream, {
-      caption: title,
+      caption: `${title}\n\n${qualityLabel}${
+        includes.reEncode ? ' - Re-Encoded' : ''
+      }`,
     })
   }
 
@@ -269,8 +281,8 @@ interface processVideoArgs {
     audio?: boolean
     video?: boolean
     merge?: boolean
-    upload?: boolean
     reEncode?: boolean
+    upload?: boolean
   }
 }
 type BoardItem =

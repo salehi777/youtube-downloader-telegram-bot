@@ -2,12 +2,12 @@ import 'dotenv/config'
 import ytdl from '@distube/ytdl-core'
 import fs from 'fs'
 import readline from 'readline'
-import { createBot } from './lib/create_bot'
-import { youtubeWithCommandRegex } from './lib/reg'
-import { downloadStream, getVideoQualities } from './lib/youtube'
-import { chunkArray, toValidFilename } from './lib/helpers'
-import { mergeVideoAudio, reEncodeVideo } from './lib/ffmpeg'
-import { getSelectedQuality, getValidYoutubeUrl } from './lib/terminal'
+import { createBot } from './lib/create_bot.js'
+import { youtubeWithCommandRegex } from './lib/reg.js'
+import { downloadStream, getVideoQualities } from './lib/youtube.js'
+import { chunkArray, toValidFilename } from './lib/helpers.js'
+import { mergeVideoAudio, reEncodeVideo } from './lib/ffmpeg.js'
+import { getSelectedQuality, getValidYoutubeUrl } from './lib/terminal.js'
 
 const bot = createBot()
 

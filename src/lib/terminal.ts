@@ -1,5 +1,5 @@
 import { Readline } from 'readline/promises'
-import { youtubeRegex } from './reg'
+import { youtubeRegex } from './reg.js'
 
 export const getValidYoutubeUrl = async (rl) => {
   return new Promise((resolve) => {
