@@ -13,10 +13,10 @@ export const getVideoQualities = (info: videoInfo) => {
   )
 
   const qualitiesGrouped = groupBy(videoFormats, 'qualityLabel')
-  const qualities = Object.entries(qualitiesGrouped).map(([key, value]) => [
-    key,
-    ytdl.chooseFormat(value, { quality: 'lowestvideo' }).itag,
-  ])
+
+  const qualities = Object.entries(qualitiesGrouped).map(([key, value]) =>
+    ytdl.chooseFormat(value, { quality: 'lowestvideo' })
+  )
   return qualities.reverse()
 }
 

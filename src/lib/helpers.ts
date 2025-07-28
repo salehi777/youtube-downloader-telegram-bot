@@ -1,3 +1,5 @@
+import fs from 'fs'
+
 export function groupBy(
   arr: any[],
   key: string
@@ -33,4 +35,22 @@ export function chunkArray(arr: any[], size: number) {
     result.push(arr.slice(i, i + size))
   }
   return result
+}
+
+export const formatFileSize = (size: string | number) => {
+  const bytes = Number(size)
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`
+  if (bytes < 1024 * 1024 * 1024)
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
+}
+
+export async function downloadImage(url: string, outputPath: string) {
+  const response = await fetch(url)
+  if (!response.ok) {
+    throw new Error(`Error downloading image, status: ${response.status}`)
+  }
+  const buffer = await response.arrayBuffer()
+  fs.writeFileSync(outputPath, Buffer.from(buffer))
 }

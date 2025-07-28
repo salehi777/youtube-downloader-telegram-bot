@@ -4,7 +4,12 @@ import fs from 'fs'
 import { createBot } from './lib/create_bot.js'
 import { youtubeWithCommandRegex } from './lib/reg.js'
 import { downloadStream, getVideoQualities } from './lib/youtube.js'
-import { chunkArray, toValidFilename } from './lib/helpers.js'
+import {
+  chunkArray,
+  downloadImage,
+  formatFileSize,
+  toValidFilename,
+} from './lib/helpers.js'
 import { mergeVideoAudio, reEncodeVideo } from './lib/ffmpeg.js'
 import TelegramBot from 'node-telegram-bot-api'
 
@@ -40,6 +45,7 @@ bot.onText(youtubeWithCommandRegex, async (msg, match) => {
       default:
         throw new Error('Unknown command')
     }
+    await saveThumbnail({ videoFolder })
     await showQualitiesKeyboard({ command, chatId, videoFolder })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -127,23 +133,62 @@ const saveInfo = async ({ chatId, videoID, videoFolder }: saveInfoArgs) => {
     )
 }
 
+// get video thumbnail and saves it in downloaded/<video-id>/thumbnail.jpg
+const saveThumbnail = async ({ videoFolder }: saveThumbnailArgs) => {
+  const info: videoInfo = JSON.parse(
+    fs.readFileSync(`${videoFolder}/info.json`, 'utf8')
+  )
+
+  if (!fs.existsSync(`${videoFolder}/thumbnail.jpg`))
+    downloadImage(
+      info.videoDetails.thumbnails.at(-1)!.url,
+      `${videoFolder}/thumbnail.jpg`
+    )
+}
+
 // show inline keyboard with qualities
 const showQualitiesKeyboard = async ({
   command,
   chatId,
   videoFolder,
 }: showQualitiesKeyboardArgs) => {
-  const info = JSON.parse(fs.readFileSync(`${videoFolder}/info.json`, 'utf8'))
+  const info: videoInfo = JSON.parse(
+    fs.readFileSync(`${videoFolder}/info.json`, 'utf8')
+  )
+
+  const audioContentLength = Number(
+    ytdl.chooseFormat(info.formats, {
+      quality: 'highestaudio',
+    }).contentLength
+  )
 
   const qualities = getVideoQualities(info)
-    .map(([quality, itag]) => [
-      { text: quality, callback_data: `${command}|${videoFolder}|${itag}` },
-    ])
-    .flat()
 
-  await bot.sendMessage(chatId, 'Choose quality', {
+  const inline_keyboard = qualities.map(({ qualityLabel, itag }) => [
+    {
+      text: qualityLabel,
+      callback_data: `${command}|${videoFolder}|${itag}`,
+    },
+  ])
+
+  const caption = [
+    `<b>${info.videoDetails.title}</b>`,
+    '',
+    `<b>🕐 ${info.videoDetails.lengthSeconds}s</b>`,
+    '',
+    ...qualities.map(
+      ({ qualityLabel, contentLength }) =>
+        `🎥 <b>${qualityLabel}: ${formatFileSize(
+          Number(contentLength) + audioContentLength
+        )}</b>`
+    ),
+  ].join('\n')
+
+  await bot.sendPhoto(chatId, info.videoDetails.thumbnails.at(-1)!.url, {
+    parse_mode: 'HTML',
+    caption,
     reply_markup: {
-      inline_keyboard: chunkArray(qualities, 3),
+      inline_keyboard: chunkArray(inline_keyboard.flat(), 3),
     },
   })
 }
@@ -266,6 +311,9 @@ const getBoardItemText = (label: string, item: BoardItem) => {
 interface saveInfoArgs {
   chatId: TelegramBot.ChatId
   videoID: string
+  videoFolder: string
+}
+interface saveThumbnailArgs {
   videoFolder: string
 }
 interface showQualitiesKeyboardArgs {

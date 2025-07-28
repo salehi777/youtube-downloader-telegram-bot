@@ -63,8 +63,9 @@ Bot: show qualities, upload
 
 ## 📝 To-Do
 
-- [ ] Add thumbnail
-- [ ] Show some video info before user selects quality
+- [x] Save thumbnail
+- [x] Show some video info before user selects quality
+- [ ] Add custom thumbnail to video before uploading to telegram
 - [ ] Add slash commands
 - [ ] Add Menu
 - [ ] Search about other features
