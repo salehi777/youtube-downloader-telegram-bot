@@ -1,14 +1,14 @@
 {
-  "name": "youtube",
+  "name": "youtube-downloader-telegram-bot",
   "version": "1.0.0",
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "dev-tel": "tsx watch src/telegram-bot.ts",
-    "dev-loc": "tsx src/locally.ts",
+    "dev": "tsx watch src/telegram-bot.ts",
+    "dev-local": "tsx src/locally.ts",
     "build": "tsc",
-    "start-tel": "node dist/telegram-bot.js",
-    "start-loc": "node dist/locally.js",
+    "start": "node dist/telegram-bot.js",
+    "start-local": "node dist/locally.js",
     "ts": "tsc --noEmit"
   },
   "dependencies": {
